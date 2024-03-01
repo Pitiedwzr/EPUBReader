@@ -1,6 +1,0 @@
-{
-  "epub_file_path": "your_epub_file.epub",
-  "api_token": "your_api_token",
-  "api_url": "https://your_api_url/api/ra",
-  "format": "audio-24khz-96kbitrate-mono-mp3"
-}
