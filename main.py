@@ -21,11 +21,11 @@ def extract_text_from_epub(epub_file_path):
     return text
 
 # 调用API生成音频
-def generate_audio(text, api_token, api_url):
+def generate_audio(text, api_token, api_url, audio_format):
     headers = {
         "Authorization": f"Bearer {api_token}",
         "Content-Type": "text/plain",
-        "FORMAT": "{format}"
+        "FORMAT": audio_format  # 将格式参数直接设置为字符串
     }
     data = f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="en-US-GuyNeural">{text}</voice></speak>'
     response = requests.post(api_url, headers=headers, data=data)
@@ -45,9 +45,14 @@ def add_audio_to_epub(epub_file_path, audio_data):
 
 # 主程序
 def main():
+    config = read_config()
+    audio_format = config["format_audio"]
+    epub_file_path = config["epub_file_path"]
+    api_token = config["api_token"]
+    api_url = config["api_url"]
     text = extract_text_from_epub(epub_file_path)
     print(text)  # 打印提取的文本内容
-    audio_data = generate_audio(text, api_token, api_url)
+    audio_data = generate_audio(text, api_token, api_url, audio_format)
     if audio_data:
         add_audio_to_epub(epub_file_path, audio_data)
 
