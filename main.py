@@ -2,6 +2,7 @@ import json
 import ebooklib
 from ebooklib import epub
 import requests
+from bs4 import BeautifulSoup
 
 # 读取配置文件
 def read_config():
@@ -16,9 +17,10 @@ def extract_text_from_epub(epub_file_path):
     for item in book.get_items():
         # 检查item是否为文本类型
         if item.get_type() == ebooklib.ITEM_DOCUMENT:
-            # 提取文本内容
-            text += item.get_content().decode('utf-8')  # 解码为字符串
-    return text
+            # 提取文本内容，并去除 HTML 标签
+            soup = BeautifulSoup(item.get_content(), "html.parser")
+            text += soup.get_text() + "\n"  # 添加换行符以分隔不同部分
+    return text.strip()  # 去除首尾空白
 
 # 调用API生成音频
 def generate_audio(text, api_token, api_url, audio_format):
@@ -51,7 +53,7 @@ def main():
     api_token = config["api_token"]
     api_url = config["api_url"]
     text = extract_text_from_epub(epub_file_path)
-    print(text)  # 打印提取的文本内容
+    print(text)  # 打印提取的纯文本内容
     audio_data = generate_audio(text, api_token, api_url, audio_format)
     if audio_data:
         add_audio_to_epub(epub_file_path, audio_data)
