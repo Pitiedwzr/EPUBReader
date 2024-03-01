@@ -1,20 +1,22 @@
+import json
 import ebooklib
 from ebooklib import epub
 import requests
-import tempfile
-import os
 
-# 准备EPUB文件路径和API TOKEN
-epub_file_path = "The Beginners Bible Timeless Childrens Stories (Zondervan) (Z-Library).epub"
-api_token = "060718"
-api_url = "https://ms-ra-forwarder-xi-silk.vercel.app/api/ra"  # 更改为您的API网址
+# 读取配置文件
+def read_config():
+    with open("config.json", "r") as config_file:
+        config = json.load(config_file)
+    return config
 
 # 从EPUB文件中提取文本内容
 def extract_text_from_epub(epub_file_path):
     book = epub.read_epub(epub_file_path)
     text = ""
     for item in book.get_items():
+        # 检查item是否为文本类型
         if item.get_type() == ebooklib.ITEM_DOCUMENT:
+            # 提取文本内容
             text += item.get_content().decode('utf-8')  # 解码为字符串
     return text
 
@@ -23,7 +25,7 @@ def generate_audio(text, api_token, api_url):
     headers = {
         "Authorization": f"Bearer {api_token}",
         "Content-Type": "text/plain",
-        "FORMAT": "audio-24khz-96kbitrate-mono-mp3"
+        "FORMAT": "{format}"
     }
     data = f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="en-US-GuyNeural">{text}</voice></speak>'
     response = requests.post(api_url, headers=headers, data=data)
@@ -44,6 +46,7 @@ def add_audio_to_epub(epub_file_path, audio_data):
 # 主程序
 def main():
     text = extract_text_from_epub(epub_file_path)
+    print(text)  # 打印提取的文本内容
     audio_data = generate_audio(text, api_token, api_url)
     if audio_data:
         add_audio_to_epub(epub_file_path, audio_data)
