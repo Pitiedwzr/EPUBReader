@@ -1,62 +1,54 @@
-import json
-import ebooklib
-from ebooklib import epub
 import requests
-from bs4 import BeautifulSoup
 
-# ¶ÁÈ¡ÅäÖÃÎÄ¼ş
-def read_config():
-    with open("config.json", "r") as config_file:
-        config = json.load(config_file)
-    return config
+# è®¾ç½®APIç«¯ç‚¹
+url = 'h'
+api_token = ''
 
-# ´ÓEPUBÎÄ¼şÖĞÌáÈ¡ÎÄ±¾ÄÚÈİ
-def extract_text_from_epub(epub_file_path):
-    book = epub.read_epub(epub_file_path)
-    text = ""
-    for item in book.get_items():
-        # ¼ì²éitemÊÇ·ñÎªÎÄ±¾ÀàĞÍ
-        if item.get_type() == ebooklib.ITEM_DOCUMENT:
-            # ÌáÈ¡ÎÄ±¾ÄÚÈİ£¬²¢È¥³ı HTML ±êÇ©
-            soup = BeautifulSoup(item.get_content(), "html.parser")
-            text += soup.get_text() + "\n"  # Ìí¼Ó»»ĞĞ·ûÒÔ·Ö¸ô²»Í¬²¿·Ö
-    return text.strip()  # È¥³ıÊ×Î²¿Õ°×
+def create_ssml(text, voice_name):
+    # è¿™é‡Œæ˜¯åˆ›å»ºSSMLå­—ç¬¦ä¸²çš„å‡½æ•°ï¼Œæ‚¨å¯èƒ½éœ€è¦æ ¹æ®å®é™…æƒ…å†µè¿›è¡Œè°ƒæ•´
+    return f"""
+    <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
+      <voice name="{voice_name}">
+        {text}
+      </voice>
+    </speak>
+    """
 
-# µ÷ÓÃAPIÉú³ÉÒôÆµ
-def generate_audio(text, api_token, api_url, audio_format):
-    headers = {
-        "Authorization": f"Bearer {api_token}",
-        "Content-Type": "text/plain",
-        "FORMAT": audio_format  # ½«¸ñÊ½²ÎÊıÖ±½ÓÉèÖÃÎª×Ö·û´®
-    }
-    data = f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="en-US-GuyNeural">{text}</voice></speak>'
-    response = requests.post(api_url, headers=headers, data=data)
-    if response.status_code == 200:
-        return response.content  # ·µ»Ø×Ö½ÚÀàĞÍµÄÒôÆµÊı¾İ
-    else:
-        print("Failed to generate audio:", response.status_code)
-        return None
+voice_name = 'en-GB-RyanNeural'
+'''
+ChineseMale: zh-CN-XiaoyiNeural
+ChineseFemale: zh-CN-XiaoxiaoNeural
+English(US)Male: en-US-GuyNeural
+English(US)Female: en-US-MichelleNeural
+English(UK)Male: en-GB-RyanNeural
+English(UK)Female: en-GB-SoniaNeural
+'''
+voice_format = 'audio-24khz-96kbitrate-mono-mp3'
+text = u''
 
-# ½«ÒôÆµÌí¼Óµ½EPUBÎÄ¼şÖĞ
-def add_audio_to_epub(epub_file_path, audio_data):
-    book = epub.read_epub(epub_file_path)
-    audio_item = epub.EpubItem(uid="audio", file_name="audio.mp3", content=audio_data, media_type="audio/mp3")
-    book.add_item(audio_item)
-    book.toc.append(audio_item)
-    epub.write_epub("output.epub", book)
+# åˆ›å»ºSSMLæ•°æ®
+ssml_data = create_ssml(text, voice_name)
 
-# Ö÷³ÌĞò
-def main():
-    config = read_config()
-    audio_format = config["format_audio"]
-    epub_file_path = config["epub_file_path"]
-    api_token = config["api_token"]
-    api_url = config["api_url"]
-    text = extract_text_from_epub(epub_file_path)
-    print(text)  # ´òÓ¡ÌáÈ¡µÄ´¿ÎÄ±¾ÄÚÈİ
-    audio_data = generate_audio(text, api_token, api_url, audio_format)
-    if audio_data:
-        add_audio_to_epub(epub_file_path, audio_data)
+# è®¾ç½®è¯·æ±‚å¤´éƒ¨
+headers = {
+    'Content-Type': 'text/plain',
+    'Authorization': f'Bearer {api_token}',
+    'Format': voice_format  # æ ¹æ®å®˜æ–¹ç¤ºä¾‹æ·»åŠ çš„æ ¼å¼å¤´éƒ¨
+}
 
-if __name__ == "__main__":
-    main()
+
+
+
+# å‘é€POSTè¯·æ±‚
+response = requests.post(url, headers=headers, data=ssml_data.encode('utf-8'))
+
+# æ£€æŸ¥å“åº”çŠ¶æ€
+if response.status_code == 200:
+    # å°†å“åº”å†…å®¹å†™å…¥æ–‡ä»¶
+    with open('output.mp3', 'wb') as audio_file:
+        audio_file.write(response.content)
+    print("éŸ³é¢‘åˆæˆæˆåŠŸï¼Œæ–‡ä»¶å·²ä¿å­˜ä¸º output.mp3")
+elif response.status_code == 401:
+    print("éŸ³é¢‘åˆæˆå¤±è´¥ï¼Œæ— æ•ˆçš„å¯†é’¥")
+else:
+    print(f"éŸ³é¢‘åˆæˆå¤±è´¥ï¼Œé”™è¯¯ä»£ç ï¼š{response.status_code}")
