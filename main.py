@@ -1,18 +1,11 @@
 import requests
+import os
+import ebooklib
+from ebooklib import epub
+from bs4 import BeautifulSoup
 
-# 设置API端点
-url = 'h'
+url = ''
 api_token = ''
-
-def create_ssml(text, voice_name):
-    # 这里是创建SSML字符串的函数，您可能需要根据实际情况进行调整
-    return f"""
-    <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
-      <voice name="{voice_name}">
-        {text}
-      </voice>
-    </speak>
-    """
 
 voice_name = 'en-GB-RyanNeural'
 '''
@@ -26,29 +19,71 @@ English(UK)Female: en-GB-SoniaNeural
 voice_format = 'audio-24khz-96kbitrate-mono-mp3'
 text = u''
 
-# 创建SSML数据
-ssml_data = create_ssml(text, voice_name)
-
-# 设置请求头部
 headers = {
     'Content-Type': 'text/plain',
     'Authorization': f'Bearer {api_token}',
-    'Format': voice_format  # 根据官方示例添加的格式头部
+    'Format': voice_format
 }
 
 
+def create_ssml(text, voice_name):
+    return f"""
+    <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
+      <voice name="{voice_name}">
+        {text}
+      </voice>
+    </speak>
+    """
 
+ssml_data = create_ssml(text, voice_name)
 
-# 发送POST请求
-response = requests.post(url, headers=headers, data=ssml_data.encode('utf-8'))
+# 调用TTS API
+def text_to_speech(text, voice_name, file_name):
+    ssml_data = create_ssml(text, voice_name)
+    headers = {
+        'Content-Type': 'text/plain',
+        'Authorization': f'Bearer {api_token}',
+        'Format': voice_format
+    }
+    response = requests.post(url, headers=headers, data=ssml_data.encode('utf-8'))
+    if response.status_code == 200:
+        with open(file_name, 'wb') as audio_file:
+            audio_file.write(response.content)
+        return True
+    return False
 
-# 检查响应状态
-if response.status_code == 200:
-    # 将响应内容写入文件
-    with open('output.mp3', 'wb') as audio_file:
-        audio_file.write(response.content)
-    print("音频合成成功，文件已保存为 output.mp3")
-elif response.status_code == 401:
-    print("音频合成失败，无效的密钥")
-else:
-    print(f"音频合成失败，错误代码：{response.status_code}")
+def main(epub_path):
+    book = epub.read_epub(epub_path)
+    audio_files = []
+    global_index = 0
+
+    for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        soup = BeautifulSoup(item.content, 'html.parser')
+        for p in soup.find_all('p'):
+            # 将段落文本转换为语音
+            file_name = f'paragraph_{global_index}.mp3'
+            if text_to_speech(p.text, voice_name, file_name):
+                print(f"段落 {global_index} 转换成功，保存为 {file_name}")
+                audio_tag = soup.new_tag('audio', controls=True)
+                audio_tag['src'] = f'../audio/{file_name}'
+                p.append(audio_tag)
+                audio_files.append(file_name)
+                global_index += 1
+            else:
+                print(f"段落 {global_index} 转换失败")
+        item.content = str(soup)
+
+    # 将音频文件添加到EPUB中
+    for audio_file in audio_files:
+        audio_item = epub.EpubItem(
+            uid=audio_file,
+            file_name=f'audio/{audio_file}',
+            media_type='audio/mpeg',
+            content=open(audio_file, 'rb').read()
+        )
+        book.add_item(audio_item)
+
+    # 重新打包EPUB文件
+    epub.write_epub('BOOK_audio.epub', book)
+
+main('BOOK.epub')
