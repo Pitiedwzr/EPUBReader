@@ -6,3 +6,4 @@
 *.epub
 /config.json
 /output.mp3
+*.mp3
